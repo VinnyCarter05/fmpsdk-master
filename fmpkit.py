@@ -69,7 +69,7 @@ def moat_per_share (df_balance, df_income, df_cashflow):
 
 def growth_rates (df):
     symbols = df.reset_index()['symbol'].unique().tolist()
-    time_periods = ['10 year', '5 year', '2 year']
+    time_periods = ['10 year', '5 year', '2 year', 'weighted']
     index=pd.MultiIndex.from_product([symbols,time_periods],names=['symbol','timeframe'])
     df_gr = pd.DataFrame(index=index, columns = df.columns)
     df_pct_chg = df.groupby('symbol').pct_change()
@@ -78,4 +78,23 @@ def growth_rates (df):
             df_gr.loc[symbol,'2 year'][col] = df_pct_chg[col].loc[symbol].iloc[-2:-1].median()
             df_gr.loc[symbol,'5 year'][col] = df_pct_chg[col].loc[symbol].iloc[-5:-1].median()
             df_gr.loc[symbol,'10 year'][col] = df_pct_chg[col].loc[symbol].iloc[-10:-1].median()
+            df_gr.loc[symbol,'weighted'][col] = 0
+            df_gr.loc[symbol][col].replace([np.inf, -np.inf, np.nan], -9999, inplace=True)
+            print (df_gr.loc[symbol][col]==-9999)
+            if (df_gr.loc[symbol][col]==-9999).sum().sum()==0:
+                df_gr.loc[symbol,'weighted'][col] = (df_gr.loc[symbol,'2 year'][col]+df_gr.loc[symbol,'5 year'][col]
+                                                     +df_gr.loc[symbol,'10 year'][col])/3
+                print (True)
+            else:
+                df_gr.loc[symbol,'weighted'][col] = np.nan
+                print (False)
+#     df_gr.replace([np.inf, -np.inf,np.nan], 0, inplace=True)
     return df_gr
+
+def mgt_per_share(df_keymetrics,df_balance,df_cashflow):
+    mgt_columns = ("ROIC","ROE","LTD-to-FCF")
+    df_mgt = pd.DataFrame(index=df_balance.index,columns=mgt_columns)
+    df_mgt["ROIC"]=df_keymetrics["roic"]#(df_income['operatingIncome']*(1+df_income['incomeTaxExpense']/df_income['incomeBeforeTax']))/( (df_balance['longTermDebt'] + df_balance['shortTermDebt'] + df_balance['totalStockholdersEquity']))
+    df_mgt["ROE"]=df_keymetrics["roe"]#df_income['netIncome']/df_balance['totalStockholdersEquity']
+    df_mgt["LTD-to-FCF"]=df_balance['longTermDebt']/df_cashflow['freeCashFlow']
+    return df_mgt
